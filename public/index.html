@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="style.css">
+	<title>Skills Test Practice</title>
+</head>
+
+<body>
+	<h2>Students List</h2>
+	<table id="studentsTable">
+	</table>
+
+	<br><br>
+
+	<button id="addStudentBtn" class="btn btn-ok">
+		Add Student
+	</button>
+
+	<dialog id="addStudentDialog" class="modal" style="display: none; flex-direction: column;">
+		<div class="form-card">
+			<h3 id="dialog-title"></h3>
+			<form id="newStudentForm">
+				<div class="form-group">
+					<label for="first-name">First Name</label>
+					<input type="text" id="first-name" name="first-name" placeholder="e.g., John">
+				</div>
+
+				<div class="form-group">
+					<label for="last-name">Last Name</label>
+					<input type="text" id="last-name" name="last-name" placeholder="e.g., Doe">
+				</div>
+
+				<div class="form-group">
+					<label for="age">Age</label>
+					<input type="number" id="age" name="age" placeholder="e.g., 16">
+				</div>
+
+				<div class="form-group">
+					<label for="section">Section</label>
+					<select id="section" name="section" placeholder="e.g., Grade 10-A">
+					</select>
+				</div>
+
+				<input type="number" id="studentID" hidden>
+
+				<div class="form-actions">
+					<button type="submit" class="btn btn-ok">Save Student</button>
+				</div>
+			</form>
+		</div>
+	</dialog>
+
+
+	<script>
+		const LOCAL_HOST = "http://localhost:5000/"
+
+		async function loadStudentsDetails() {
+			const url = LOCAL_HOST + "api/students_details"
+			const res = await fetch(url);
+			const students = await res.json();
+			document.getElementById('studentsTable').innerHTML = `<thead>
+					<tr>
+						<th>First Name</th>
+						<th>Last Name</th>
+						<th>Age</th>
+						<th>Section</th>
+						<th>Designated Room</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				
+				<tbody id="studentsBody"></tbody>`
+
+			const tbody = document.getElementById('studentsBody');
+			tbody.innerHTML = '';
+
+			students.forEach(s => {
+				tbody.innerHTML += `<tr>
+						<td>${s.FirstName}</td>
+						<td>${s.LastName}</td>
+						<td>${s.Age}</td>
+						<td>${s.SectionName}</td>
+						<td>${s.DesignatedRoom}</td>
+						<td><button id="update-${s.StudentID}" class="btn btn-edit edit-student">Update</button></td>
+						<td><button id="delete-${s.StudentID}" class="btn btn-delete delete-student">Delete</button></td>
+					</tr>
+					`;
+			});
+
+			const editBtns = document.getElementsByClassName("edit-student")
+			for (let i = 0; i < editBtns.length; i++) {
+				editBtns[i].addEventListener('click', handleEditStudent)
+			}
+			const deleteBtns = document.getElementsByClassName("delete-student")
+			for (let i = 0; i < editBtns.length; i++) {
+				deleteBtns[i].addEventListener('click', handleDeleteStudent)
+			}
+		}
+
+		const dialogTitle = document.getElementById('dialog-title')
+		let toAdd = true
+
+		async function handleEditStudent(event) {
+			const currID = event.target.id.match(/\d+/)[0]
+			console.log(currID)
+
+			toAdd = false
+			const firstNameElem = document.getElementById('first-name')
+			const lastNameElem = document.getElementById('last-name')
+			const ageElem = document.getElementById('age')
+			const sectionElem = document.getElementById('section')
+			const studentIDElem = document.getElementById('studentID')
+			let currSection
+
+			try {
+				const response = await fetch(LOCAL_HOST + 'api/get_student', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ studentID: currID })
+				});
+
+				const data = await response.json()
+
+				if (response.ok) {
+					console.log("Success!")
+					studentIDElem.value = currID
+					firstNameElem.value = data[0].FirstName
+					lastNameElem.value = data[0].LastName
+					ageElem.value = data[0].Age
+					currSection = data[0].SectionID
+				} else {
+					console.log(`Error: ${data.error || 'Something went wrong.'}`)
+				}
+
+			} catch (err) {
+				console.error('Network error:', err)
+			}
+
+			dialogTitle.innerText = "Edit Student"
+			addStudentDialog.style.display = "flex"
+			addStudentDialog.showModal()
+
+			const url = LOCAL_HOST + "api/sections"
+			const res = await fetch(url);
+			const sections = await res.json();
+			const sBody = document.getElementById('section')
+			sBody.innerHTML = ""
+
+			console.log(currSection)
+
+			sections.forEach(s => {
+				sBody.innerHTML += `
+					<option value="${s.SectionID}" ${s.SectionID == currSection ? "selected" : ""}>
+						${s.SectionName}
+					</option>
+					`;
+			});
+		}
+
+		async function handleDeleteStudent(event) {
+			const currID = event.target.id.match(/\d+/)[0]
+			console.log(currID)
+
+			try {
+				const response = await fetch(LOCAL_HOST + 'api/remove_student', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ studentID: currID })
+				});
+
+				const data = await response.json()
+
+				if (response.ok) {
+					console.log("Success!")
+					loadStudentsDetails()
+				} else {
+					console.log(`Error: ${data.error || 'Something went wrong.'}`)
+				}
+
+			} catch (err) {
+				console.error('Network error:', err)
+			}
+		}
+
+		const studentBtn = document.getElementById('displayStudentsBtn')
+		const studentDetailsBtn = document.getElementById('displayStudentsDetailedBtn')
+		let alreadyDisp = 0
+
+		const addStudentBtn = document.getElementById('addStudentBtn')
+		const addStudentDialog = document.getElementById('addStudentDialog')
+		addStudentBtn.addEventListener('click', handleAddNewStudentDialog)
+
+		async function handleAddNewStudentDialog(event) {
+			toAdd = true
+			dialogTitle.innerText = "Add new student"
+			addStudentDialog.style.display = "flex"
+			addStudentDialog.showModal()
+
+			const url = LOCAL_HOST + "api/sections"
+			const res = await fetch(url);
+			const sections = await res.json();
+			const sBody = document.getElementById('section')
+			sBody.innerHTML = ""
+
+			sections.forEach(s => {
+				sBody.innerHTML += `
+					<option value="${s.SectionID}">${s.SectionName}</option>
+					`;
+			});
+		}
+
+		const newStudentForm = document.getElementById('newStudentForm')
+
+		newStudentForm.addEventListener('submit', async function (event) {
+			event.preventDefault()
+
+			const id = document.getElementById('studentID').value.trim()
+			const firstName = document.getElementById('first-name').value.trim()
+			const lastName = document.getElementById('last-name').value.trim()
+			const age = document.getElementById('age').value.trim()
+			const section = document.getElementById('section').value.trim()
+
+			if (toAdd) {
+				try {
+					const response = await fetch(LOCAL_HOST + 'api/add_student', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({ firstName, lastName, age, section })
+					});
+
+					const data = await response.json()
+
+					if (response.ok) {
+						console.log("Success!")
+						
+					} else {
+						console.log(`Error: ${data.error || 'Something went wrong.'}`)
+					}
+
+				} catch (err) {
+					console.error('Network error:', err)
+				}
+			}
+			else {
+				try {
+					const response = await fetch(LOCAL_HOST + 'api/update_student', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({ studentID: id, firstName, lastName, age, section })
+					});
+
+					const data = await response.json()
+
+					if (response.ok) {
+						console.log("Success!")
+					} else {
+						console.log(`Error: ${data.error || 'Something went wrong.'}`)
+					}
+
+				} catch (err) {
+					console.error('Network error:', err)
+				}
+			}
+
+			newStudentForm.reset()
+			addStudentDialog.close()
+			loadStudentsDetails()
+		})
+
+		addStudentDialog.addEventListener('close', function (event) {
+			addStudentDialog.style.display = "none"
+		})
+
+		loadStudentsDetails()
+	</script>
+</body>
+
+</html>
