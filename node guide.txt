@@ -1,0 +1,13 @@
+portable node, be sure to exec in folder where node and npm exists:
+npm install express mssql cors dotenv
+
+if blocked by policy thing:
+Set-ExecutionPolicy RemoteSigned -Scope Process
+
+to confirm node is working:
+npm -v
+node -v
+
+if npm not found error:
+.\npm -v
+.\node -v
